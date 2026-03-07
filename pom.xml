@@ -22,8 +22,8 @@
         <!-- Core dependencies -->
         <flink.version>2.0.0</flink.version>
         <iggy.version>0.6.0</iggy.version>
-        <avro.version>1.11.3</avro.version>
-        <protobuf.version>3.25.3</protobuf.version>
+        <avro.version>1.11.4</avro.version>
+        <protobuf.version>3.25.5</protobuf.version>
 
         <!-- Logging -->
         <slf4j.version>2.0.9</slf4j.version>
@@ -34,7 +34,7 @@
         <mockito.version>5.7.0</mockito.version>
         <cucumber.version>7.15.0</cucumber.version>
         <testcontainers.version>1.19.3</testcontainers.version>
-        <assertj.version>3.24.2</assertj.version>
+        <assertj.version>3.27.7</assertj.version>
     </properties>
 
     <dependencies>
