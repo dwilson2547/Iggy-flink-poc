@@ -1,0 +1,42 @@
+version: '3.8'
+
+# Docker Compose configuration for local Apache Iggy server development and testing.
+# Uses TCP-only transport as required by the application.
+#
+# Usage:
+#   docker compose up -d          # Start Iggy server
+#   docker compose down           # Stop and remove containers
+#   docker compose down -v        # Stop and remove containers + volumes (full reset)
+#
+# The Iggy TCP server will be available on localhost:8090.
+# Default credentials: username=iggy, password=iggy
+
+services:
+  iggy:
+    image: apache/iggy:latest
+    container_name: iggy-server
+    restart: unless-stopped
+    environment:
+      - IGGY_ROOT_USERNAME=iggy
+      - IGGY_ROOT_PASSWORD=iggy
+      - IGGY_TCP_ENABLED=true
+      - IGGY_TCP_ADDRESS=0.0.0.0:8090
+      # HTTP disabled — application uses TCP only
+      - IGGY_HTTP_ENABLED=false
+      # QUIC disabled for simplicity
+      - IGGY_QUIC_ENABLED=false
+    ports:
+      - "8090:8090"
+    volumes:
+      - iggy_data:/iggy/local_data
+    healthcheck:
+      # Use TCP connectivity check since HTTP is disabled
+      test: ["CMD-SHELL", "timeout 1 bash -c 'echo > /dev/tcp/localhost/8090' 2>/dev/null && echo 'OK' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  iggy_data:
+    driver: local

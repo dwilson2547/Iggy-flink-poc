@@ -1,0 +1,123 @@
+# Helm values for deploying the Iggy Flink POC.
+# Override these values in your environment-specific values files
+# (e.g. values-production.yaml).
+#
+# This chart manages three components:
+#   - Apache Flink cluster (JobManager + TaskManager)
+#   - Iggy Flink application JAR submission
+#   - Apache Iggy server (optional, for non-Kubernetes Iggy deployments)
+
+# ---- Global ----
+replicaCount: 1
+
+image:
+  flink:
+    repository: apache/flink
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
+  job:
+    repository: your-registry/iggy-flink-poc
+    tag: "1.0.0-SNAPSHOT"
+    pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+# ---- Iggy Connection ----
+iggy:
+  host: "iggy-server"
+  port: 8090
+  username: "iggy"
+  # password should be set via --set iggy.password=<value> or a Kubernetes Secret
+  password: "iggy"
+  # TCP-only — HTTP and QUIC are not used
+  tcp:
+    enabled: true
+
+# ---- Pipeline Configuration ----
+pipeline:
+  source:
+    streamName: "events"
+    topicName: "input"
+    consumerId: 1
+    batchSize: 100
+    pollIntervalMs: 100
+    partitionId: 1
+  sink:
+    streamName: "events"
+    topicName: "output"
+    partitioningStrategy: "BALANCED"  # BALANCED | PARTITION_ID | MESSAGE_KEY
+
+# ---- Flink Configuration ----
+flink:
+  jobManager:
+    replicas: 1
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    service:
+      type: ClusterIP
+      rpcPort: 6123
+      webPort: 8081
+
+  taskManager:
+    replicas: 2
+    taskSlots: 2
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+  parallelism: 1
+
+  properties:
+    "taskmanager.memory.process.size": "1728m"
+    "jobmanager.memory.process.size": "1600m"
+    "state.checkpoints.dir": "file:///flink-checkpoints"
+    "execution.checkpointing.interval": "60000"
+
+# ---- Optional: Deploy Iggy Server alongside Flink ----
+# Set to true when Iggy is managed by this Helm chart (e.g., local dev)
+iggyServer:
+  enabled: false
+  image:
+    repository: apache/iggy
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    tcpPort: 8090
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# ---- Service Account ----
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# ---- Pod Security ----
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+# ---- Node Selector / Tolerations / Affinity ----
+nodeSelector: {}
+tolerations: []
+affinity: {}

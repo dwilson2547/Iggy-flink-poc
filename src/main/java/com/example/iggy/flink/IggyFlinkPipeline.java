@@ -8,6 +8,7 @@ import com.example.iggy.flink.pipeline.DomainStage;
 import com.example.iggy.flink.pipeline.SerializationStage;
 import com.example.iggy.flink.sink.IggySink;
 import com.example.iggy.flink.source.IggySource;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -106,10 +107,11 @@ public class IggyFlinkPipeline<I, O> {
                 sourceConfig.getStreamName(), sourceConfig.getTopicName(),
                 sinkConfig.getStreamName(), sinkConfig.getTopicName());
 
-        // Stage 1: Read raw bytes from Iggy source
-        DataStream<byte[]> rawSource = env.addSource(
-                new IggySource(sourceConnectionConfig, sourceConfig))
-                .name("Iggy Source [" + sourceConfig.getStreamName() + "/" + sourceConfig.getTopicName() + "]");
+        // Stage 1: Read raw bytes from Iggy source using Flink 2.0 Source API
+        DataStream<byte[]> rawSource = env.fromSource(
+                new IggySource(sourceConnectionConfig, sourceConfig),
+                WatermarkStrategy.noWatermarks(),
+                "Iggy Source [" + sourceConfig.getStreamName() + "/" + sourceConfig.getTopicName() + "]");
 
         // Stage 2: Deserialize raw bytes into domain input type
         DataStream<I> deserialized = rawSource.map(
@@ -125,8 +127,8 @@ public class IggyFlinkPipeline<I, O> {
                 new SerializeFunction<>(serializationStage))
                 .name("Serialize [" + serializationStage.getStageName() + "]");
 
-        // Stage 5: Write serialized bytes to Iggy sink
-        serialized.addSink(new IggySink(sinkConnectionConfig, sinkConfig))
+        // Stage 5: Write serialized bytes to Iggy sink using Flink 2.0 Sink API
+        serialized.sinkTo(new IggySink(sinkConnectionConfig, sinkConfig))
                 .name("Iggy Sink [" + sinkConfig.getStreamName() + "/" + sinkConfig.getTopicName() + "]");
     }
 
