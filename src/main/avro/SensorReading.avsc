@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "SensorReading",
+  "namespace": "com.example.iggy.flink.example.avro",
+  "fields": [
+    {"name": "sensorId", "type": "string"},
+    {"name": "value", "type": "double"},
+    {"name": "unit", "type": "string"},
+    {"name": "timestamp", "type": "long"}
+  ]
+}
