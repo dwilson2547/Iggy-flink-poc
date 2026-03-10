@@ -1,0 +1,157 @@
+---
+# Flink JobManager Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iggy-flink-poc-jobmanager
+  labels:
+    app: iggy-flink-poc
+    component: jobmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iggy-flink-poc
+      component: jobmanager
+  template:
+    metadata:
+      labels:
+        app: iggy-flink-poc
+        component: jobmanager
+    spec:
+      containers:
+        - name: jobmanager
+          image: apache/flink:2.0.0
+          args: ["jobmanager"]
+          ports:
+            - containerPort: 6123   # RPC port
+            - containerPort: 8081   # Web UI port
+          env:
+            - name: FLINK_PROPERTIES
+              value: |
+                jobmanager.rpc.address: iggy-flink-poc-jobmanager
+                taskmanager.numberOfTaskSlots: 2
+                parallelism.default: 1
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+# Flink TaskManager Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iggy-flink-poc-taskmanager
+  labels:
+    app: iggy-flink-poc
+    component: taskmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iggy-flink-poc
+      component: taskmanager
+  template:
+    metadata:
+      labels:
+        app: iggy-flink-poc
+        component: taskmanager
+    spec:
+      containers:
+        - name: taskmanager
+          image: apache/flink:2.0.0
+          args: ["taskmanager"]
+          env:
+            - name: FLINK_PROPERTIES
+              value: |
+                jobmanager.rpc.address: iggy-flink-poc-jobmanager
+                taskmanager.numberOfTaskSlots: 2
+                parallelism.default: 1
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+---
+# JobManager Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: iggy-flink-poc-jobmanager
+  labels:
+    app: iggy-flink-poc
+    component: jobmanager
+spec:
+  selector:
+    app: iggy-flink-poc
+    component: jobmanager
+  ports:
+    - name: rpc
+      port: 6123
+      targetPort: 6123
+    - name: web
+      port: 8081
+      targetPort: 8081
+---
+# ConfigMap for Iggy Pipeline configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iggy-flink-poc-config
+data:
+  IGGY_HOST: "iggy-server"
+  IGGY_PORT: "8090"
+  SOURCE_STREAM: "events"
+  SOURCE_TOPIC: "input"
+  SINK_STREAM: "events"
+  SINK_TOPIC: "output"
+---
+# Secret for Iggy credentials (replace with your values)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: iggy-flink-poc-credentials
+type: Opaque
+stringData:
+  IGGY_USERNAME: "iggy"
+  IGGY_PASSWORD: "iggy"
+---
+# Flink Job Submission (as a Kubernetes Job)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iggy-flink-poc-job
+  labels:
+    app: iggy-flink-poc
+    component: job
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: flink-job-submitter
+          image: apache/flink:2.0.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              /opt/flink/bin/flink run \
+                --jobmanager iggy-flink-poc-jobmanager:6123 \
+                /opt/flink/usrlib/iggy-flink-poc-1.0.0-SNAPSHOT.jar
+          envFrom:
+            - configMapRef:
+                name: iggy-flink-poc-config
+            - secretRef:
+                name: iggy-flink-poc-credentials
+          volumeMounts:
+            - name: job-jar
+              mountPath: /opt/flink/usrlib
+      volumes:
+        - name: job-jar
+          configMap:
+            name: iggy-flink-poc-jar  # Replace with actual jar ConfigMap or PVC

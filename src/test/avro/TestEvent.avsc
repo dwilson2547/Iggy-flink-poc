@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "TestEvent",
+  "namespace": "com.example.iggy.flink.test.avro",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {"name": "name", "type": "string"},
+    {"name": "value", "type": "double"},
+    {"name": "timestamp", "type": "long"}
+  ]
+}
